@@ -64,15 +64,12 @@ public class MyActivity extends AndroidApplication
             cfg.useCompass = false;
 
 
-            Object objectGame = loadedClass.getSuperclass().getConstructor().newInstance();
-            Log.d("MainActivity", "ObjectGame is: "+objectGame.getClass());
-            Log.d("MainActivity", "Casting to game");
-            ApplicationListener gamey = (ApplicationListener) objectGame;
+            //This doesn't work-generates a class cast exception.
+            childGame = (Game) loadedClass.getSuperclass().getConstructor().newInstance();
 
             Log.d("MainActivity", "Initializing child view");
 
-            childView = initializeForView(gamey, cfg);
-            //childView = initializeForView(new TempGame(), cfg);
+            childView = initializeForView(childGame, cfg);
 
             Log.d("MainActivity", "Attaching view to screen layout");
 
