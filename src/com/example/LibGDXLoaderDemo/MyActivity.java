@@ -65,7 +65,7 @@ public class MyActivity extends AndroidApplication
 
 
             //This doesn't work-generates a class cast exception.
-            childGame = (Game) loadedClass.getSuperclass().getConstructor().newInstance();
+            childGame = (Game) loadedClass.getConstructor().newInstance();
 
             Log.d("MainActivity", "Initializing child view");
 
