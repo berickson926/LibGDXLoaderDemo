@@ -1,7 +1,11 @@
 package com.example.LibGDXLoaderDemo;
 
-import android.app.Activity;
+import android.app.DownloadManager;
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.util.Log;
 import android.view.View;
 
@@ -12,11 +16,11 @@ import com.badlogic.gdx.utils.Clipboard;
 import android.os.Bundle;
 import com.badlogic.gdx.backends.android.AndroidApplication;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
+import com.enplug.utilities.Utilities;
+import com.stericson.RootTools.RootTools;
+import com.stericson.RootTools.execution.Command;
 
-import java.lang.reflect.InvocationTargetException;
-
-
-public class MyActivity extends AndroidApplication
+public class MyActivity extends AndroidApplication implements DialogInterface.OnDismissListener
 {
     View childView;
     Game childGame;
@@ -27,6 +31,9 @@ public class MyActivity extends AndroidApplication
     Class<?> loadedClass;
     Context childAppCtx;
 
+    //Simple dialog popup used to notify the main activity that the child app downloading is complete
+    private ProgressDialog progressDialog;
+
     @Override
     public void onCreate(final Bundle savedInstanceState)
     {
@@ -35,6 +42,20 @@ public class MyActivity extends AndroidApplication
 
         libgdxFrame = (FrameLayout) findViewById(R.id.libgdxFrame);
 
+        Log.d("MainActivity", "Showing download progress dialog");
+        progressDialog = new ProgressDialog(getApplicationContext());
+        progressDialog = ProgressDialog.show(this, "Hold on...", "Loading your apps...", true);
+        progressDialog.setOnDismissListener(this);
+
+        Log.d("MainActivity", "Downloading Child apk");
+        downloadUpdate("EnplugPlayer.apk", "http://enplug.com/packages/player/40/EnplugPlayer.apk");
+    }
+
+    //For simplicity, we only start to load files after the progress dialog has been dismissed, indicating the child apk has been downloaded & installed.
+    @Override
+    public void onDismiss(final DialogInterface dialog)
+    {
+        Log.d("MainActivity", "Dynamically loading child app");
         try
         {
             Log.d("MainActivity", ">>>>>>>>>>Initializing Class Loader");
@@ -43,14 +64,6 @@ public class MyActivity extends AndroidApplication
             Log.d("MainActivity", "Using class loader to find entrypoint of libgdx app.");
 
             loadedClass =  Class.forName("net.obviam.starassault.StarAssault", true, childAppCtx.getClassLoader());
-
-            Log.d("MainActivity", "Instantiating child app & setting up views.");
-
-            //getDeclaredConstructor looks for the non-default constructor that matches the parameters.
-            //      Example Constructor:  sampleClass(int a, SomeCustomClassParam b){...}
-            //      would be found using: getDeclaredConstructor(Integer.class, SomeCustomClassParam.class)
-            //      haven't tested detection of primitives, so going from Integer to int may not work right.
-            //final Game renderer = (GLSurfaceView.Renderer) loadedClass.getDeclaredConstructor(ApplicationListener.class, AndroidApplication.class).newInstance(getApplicationContext());
 
             //type testing
             Log.d("MainActivity", "Loaded Class is: " + loadedClass.getConstructor().newInstance().getClass().toString());
@@ -63,8 +76,7 @@ public class MyActivity extends AndroidApplication
             cfg.useAccelerometer = false;
             cfg.useCompass = false;
 
-
-            //This doesn't work-generates a class cast exception.
+            //This doesn't work. Generates a class cast exception.
             childGame = (Game) loadedClass.getConstructor().newInstance();
 
             Log.d("MainActivity", "Initializing child view");
@@ -85,6 +97,7 @@ public class MyActivity extends AndroidApplication
     }
 
     //TODO: not sure of what to do about these guys below just yet, or if anything needs to be done.
+    //-------------------------------------------------------------------------------------------------
 
     @Override
     public ApplicationListener getApplicationListener()
@@ -109,6 +122,60 @@ public class MyActivity extends AndroidApplication
 
     @Override
     public void removeLifecycleListener(LifecycleListener listener) {}
+
+    //---------------------------------------------------------------------------------------------------
+    //Utility Methods borrowed from EnpugUtilities.jar (thanks Justin!) to download and install a child apk from a remote location.
+
+    private void installUpdate(final String filename)
+    {
+        Utilities.logI("MainActivity", "Status - Starting install for: " + filename + ".");
+        Command command = new Command(0, "pm install -r /sdcard/Download/"+filename)
+        {
+            @Override
+            public void output(int id, String line)
+            {
+                if(line.toLowerCase().contains("success"))
+                {
+                    progressDialog.dismiss();
+                }
+            }
+        };
+        try
+        {
+            RootTools.getShell(true).add(command).waitForFinish();
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private void downloadUpdate(final String filename, final String url)
+    {
+        Utilities.logI("MainActivity", "Starting download of: " + filename + " from " + url);
+
+        //http://enplug.com/packages/player/40/EnplugPlayer.apk
+
+        Command command = new Command(0, "wget -O /sdcard/Download/"+filename + " " + url)
+        {
+            @Override
+            public void output(int id, String line)
+            {
+                if(line.contains("100% |*******************************|"))
+                {
+                    installUpdate(filename);
+                }
+            }
+        };
+        try
+        {
+            RootTools.getShell(true).add(command).waitForFinish();
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+    }
 }
 
 
