@@ -22,17 +22,27 @@ import com.stericson.RootTools.execution.Command;
 
 public class MyActivity extends AndroidApplication implements DialogInterface.OnDismissListener
 {
-    View childView;
-    Game childGame;
-    FrameLayout libgdxFrame;
-    Screen loadedScreen;
+    //Used with reflection to grab class objects from a child app
+    private Class<?> loadedClass;
+    private Context childAppCtx;
 
-
-    Class<?> loadedClass;
-    Context childAppCtx;
+    //Used to initialize views and objects after reflection
+    private View childView;
+    private Game childGame;
+    private FrameLayout libgdxFrame;
+    private Screen loadedScreen;
 
     //Simple dialog popup used to notify the main activity that the child app downloading is complete
     private ProgressDialog progressDialog;
+
+    public class Test extends Game
+    {
+        @Override
+        public void create()
+        {
+            setScreen(null);
+        }
+    }
 
     @Override
     public void onCreate(final Bundle savedInstanceState)
@@ -42,6 +52,7 @@ public class MyActivity extends AndroidApplication implements DialogInterface.On
 
         libgdxFrame = (FrameLayout) findViewById(R.id.libgdxFrame);
 
+
         Log.d("MainActivity", "Showing download progress dialog");
         progressDialog = new ProgressDialog(getApplicationContext());
         progressDialog = ProgressDialog.show(this, "Hold on...", "Loading your apps...", true);
@@ -49,6 +60,14 @@ public class MyActivity extends AndroidApplication implements DialogInterface.On
 
         Log.d("MainActivity", "Downloading Child apk");
         downloadUpdate("EnplugPlayer.apk", "http://enplug.com/packages/player/40/EnplugPlayer.apk");
+
+        AndroidApplicationConfiguration cfg = new AndroidApplicationConfiguration();
+        cfg.useGL20 = false;
+        cfg.useWakelock = true;
+        cfg.useAccelerometer = false;
+        cfg.useCompass = false;
+
+        initialize(new Test(), cfg);
     }
 
     //For simplicity, we only start to load files after the progress dialog has been dismissed, indicating the child apk has been downloaded & installed.
